@@ -7,6 +7,7 @@ __lua__
 
 function _init()
 	create_plr()
+	create_mob1()
 	init_msg()
 	state=0
 end
@@ -14,16 +15,21 @@ end
 
 function _update60()
 	if (state==0) update_game()
-	if (state==1) update_over()
+	if (state==1) then
+	 update_over()
+	end
 end
 
 
 function update_game()
 	if not messages[1] then
 		update_plr()
+		update_mob1()
+		update_explo()
 	end
 	update_cam()
 	update_msg()
+	update_blt()
 end
 
 
@@ -37,6 +43,10 @@ end
 function draw_game()
 	cls()
 	draw_map()
+	draw_mob1()
+	draw_explo()
+	draw_blt()
+	draw_fog(plr.x,plr.y,3)
 	draw_plr()
 	draw_ui()
 	draw_msg()
@@ -44,29 +54,35 @@ end
 -->8
 --player
 
+local collision_checked=false
+local invul_counter = 0 
+local invul_duration = 60
+local invul=false
+
 function create_plr()
 	plr={
 		x=3,y=3,
 		ox=0,oy=0,
-		start_ox=0, start_oy=0,
+		start_ox=0,start_oy=0,
 		anim_t=0,
 		sprite=1,
 		chest=0,
-		key=0
+		key=0,
+		life=3
 	}
 end
 
 
 function draw_plr()
 	spr(plr.sprite,
-	plr.x*8+plr.ox,
-	plr.y*8+plr.oy,1,1,plr.flip)
+	plr.x*8,
+	plr.y*8,1,1,plr.flip)
 end
 
 
 function update_plr()
-	newx=plr.x
-	newy=plr.y
+	local newx=plr.x
+	local newy=plr.y
 	if plr.anim_t==0 then
 		newox=0
 		newoy=0
@@ -87,6 +103,7 @@ function update_plr()
 			newoy=8
 		elseif (btnp(❎)) then
 			shoot()
+			sfx(7)
 		end
 	end
 	interact(newx,newy)
@@ -110,6 +127,29 @@ function update_plr()
 	else
 		plr.sprite=1
 	end
+	if not collision_checked
+	 and not invul then
+		for m1 in all(mob1) do
+		 if plr.x==m1.x and plr.y==m1.y then
+	     plr.life-=1
+	     sfx(4)
+	     collsion_checked=true
+	     invul=true
+	     invul_counter=invul_duration
+	  end
+	 end
+	end
+	if invul then
+		invul_counter-=1
+		if invul_counter <=0 then
+			invul=false
+		end
+	end
+	if plr.life == 0 then
+	 sfx(5)
+	 state=1
+	end
+	collision_checked=false
 end
 
 
@@ -153,19 +193,29 @@ function check_flag(flag,x,y)
 end
 
 
-function update_cam() 
-		zonex = flr(plr.x/32)*32
-		zoney = flr(plr.y/32)*32
-		camx = mid(zonex,(plr.x-7.5)*8,(zonex+16)*8)
-		camy = mid(zoney,(plr.y-7.5)*8,(zoney+16)*8)
-				
-		if plr.x < zonex or plr.x > zonex+32 then
-			camera(zonex*8, camy*8)
-		elseif plr.y < zoney or plr.y > zoney+32 then
-			camera(camx*8,zoney*8)	
-		end
-		camera(camx+plr.ox, camy+plr.oy)
+function update_cam()
+				camspeed = 0.5 
+    local zonex = flr(plr.x / 32) * 32
+    local zoney = flr(plr.y / 32) * 32
+
+    local camtargetx = plr.x * 8
+    local camtargety = plr.y * 8
+
+    -- interpolation pour un deplacement fluide
+    camtargetx = lerp(camtargetx, camtargetx + plr.ox, camspeed)
+    camtargety = lerp(camtargety, camtargety + plr.oy, camspeed)
+
+    local camx = mid(zonex, (camtargetx - 64) / 8, zonex + 16)
+    local camy = mid(zoney, (camtargety - 64) / 8, zoney + 16)
+
+    camera(camx * 8, camy * 8)
 end
+
+function lerp(a, b, t)
+    return a + (b - a) * t
+end
+
+
 
 
 function next_tile(x,y)
@@ -217,6 +267,8 @@ function draw_ui()
 	print_outline("X"..plr.key,10,2,7)
 	spr(16,22,1)
 	print_outline("X"..plr.chest,30,2,7)
+	spr(32,2,8)
+	print_outline("X"..plr.life,10,9,7)
 	palt()
 end
 
@@ -262,6 +314,37 @@ end
 -->8
 --bullets
 
+local blt={}
+
+function shoot()
+	local new_blt={
+	 x=plr.x,
+	 y=plr.y,
+	 direction=plr.flip and -1 or 1,
+  sprite=48,
+  speed=1,
+  timer=60
+ }
+ add(blt, new_blt)
+end
+
+
+function update_blt()
+	for b in all(blt) do
+  b.x = b.x + b.direction * b.speed
+  b.timer-=1
+  if b.timer <= 0 then
+  	del(blt, b)
+  end
+ end
+end
+
+
+function draw_blt()
+	for b in all(blt) do
+			spr(b.sprite,b.x*8,b.y*8)
+	end
+end
 
 -->8
 --game over
@@ -271,11 +354,134 @@ function update_over()
 end
 
 function draw_over()
-	cls()
-	rect(20, 35, 115, 70, 1)
-	print("game over 🐱", 45, 40, 8)          
-	print("bien joue", 25, 50, 10)
-	print("press 🅾️/c to continue", 25, 58, 7) 
+ rect(20, 35, 115, 70, 1)
+ rectfill(19, 34, 114, 69, 6)
+
+ camera(0, 0)
+ print("you die ☉", 45, 40, 8)
+ print("nice try", 25, 50, 7)
+ print("press 🅾️/c to continue", 25, 58, 7)
+ camera()
+end
+
+
+
+-->8
+--mobs
+
+local mobcounter = 0
+
+function add_mob1(m1x,m1y)
+ m1={
+  x=m1x,y=m1y,
+  life=3,
+  speed=30,
+  sprite=43
+ }
+ add(mob1,m1)
+end
+
+
+
+function create_mob1()
+	mob1={}
+	add_mob1(16, 24)
+end
+
+
+function draw_mob1()
+ for m1 in all(mob1) do
+		spr(m1.sprite,
+		m1.x*8,
+		m1.y*8)
+	end
+end
+
+function update_mob1()
+	mobcounter += 1
+	local lerp = 1/m1.speed
+	if mobcounter >= m1.speed then
+		mobcounter = 0
+		for m1 in all(mob1) do
+			local newx=m1.x
+			local newy=m1.y
+			local direction = flr(rnd(4))
+			if direction == 0 then
+				newy-=1
+			elseif direction == 1 then
+				newy+=1
+			elseif direction == 2 then
+				newx-=1
+			elseif direction == 3 then
+				newx+=1
+			end
+	
+			m1.x = mid(0, m1.x, 127)
+			m1.y = mid(0, m1.y, 127)
+			if not check_flag(0,newx,newy) then
+				m1.x=mid(0,newx,127)
+				m1.y=mid(0,newy,63)
+			end
+			for b in all(blt) do
+				if collision(m1,b) then
+					del(blt,b)
+					m1.life-=1
+					create_explo(b.x+4,b.y+2)
+					if m1.life == 0 then
+						del(mob1,m1)
+					end
+				end
+			end
+		end
+	end
+end
+
+
+-->8
+--collision
+
+function  collision(a, b)
+
+	if a.x > b.x + 8 
+	or a.y > b.y + 8
+	or a.x + 8 < b.x
+	or a.y + 8 < b.y then
+		return true
+	else
+		return false
+	end
+end
+-->8
+--explosions
+
+local explo={}
+
+function create_explo(x, y)
+	sfx(6)
+	new_explo={
+		x=x,
+		y=y,
+		timer=0
+		}
+	add(explo, new_explo)
+end
+
+function update_explo()
+
+	for e in all(explo) do
+		e.timer += 1
+		if e.timer == 13 then
+			del(explo, e)
+			end
+		end
+end
+
+
+function draw_explo()
+	for e in all(explo) do
+		circ(e.x, e.y, 
+						e.timer/3, 8+e.timer%3)
+	end
 end
 
 
