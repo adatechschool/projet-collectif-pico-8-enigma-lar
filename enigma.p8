@@ -10,32 +10,39 @@ function _init()
  mob1={}
  mob2={}
  fog={}
+ messages={}
  blood_particles={}
+ state=0
+ talk=false
+ talk2=false
+ talk3=false
+ i=0
+ end_game=false
 	create_plr()
 	create_mob1()
 	create_mob2()
-	init_msg()
-	state=0
 end
 
 
 function _update60()
 	if (state==0) update_game()
-	if (state==1) then
-	 update_over()
-	end
+	if (state==1) update_over()
+	if (state==2) update_win()
 end
 
 
 function update_game()
-	if not messages[1] then
+	if not messages[1] and (not end_game or state!=0) then
 		update_plr()
 		update_mob1()
 		update_mob2()
+		update_blt()
 	end
 	update_cam()
 	update_msg()
-	update_blt()
+	if end_game then
+		state=2
+	end
 end
 
 
@@ -43,6 +50,7 @@ end
 function _draw()
 	if (state==0) draw_game()
 	if (state==1) draw_over()
+	if (state==2) draw_win()
 end
 
 
@@ -68,7 +76,7 @@ local invul=false
 
 function create_plr()
 	plr={
-		x=91,y=13,
+		x=3,y=3,
 		ox=0,oy=0,
 		start_ox=0,start_oy=0,
 		anim_t=0,
@@ -227,15 +235,15 @@ function interact(x,y)
 	 create_msg("maze", "vous entrez dans\nle labyrinthe maudit","ici la vision est trouble","vous devez trouver\nles 2 clefs")
 	elseif x==22 and y==60 then
 	 create_msg("papy", "merci infiniment !\nvous m'avez sauvez !","il y a un tp\nplus a l'est","allons retrouver ma\nma petite fille !")
+	 talk = true
 	elseif x==115 and y==5 then
-	 create_msg("secret", "sur cette ile celeste\nce cache une salle secrete","a vous de la trouver..") 
+	 create_msg("secret", "sur cette ile celeste\nse cache une salle secrete","a vous de la trouver..") 
 	elseif x==98 and y==15 then
 	 create_msg("troll","dommage essaie encore !") 
 	elseif x==120 and y==42 then
-	 create_msg("bravo","felicitation, vous avez\ntrouver la salle secrete !")
+	 create_msg("bravo","fait avec ♥  par:\nlucas, arthur et remy")
 	elseif x==92 and y==10 then
 	 create_msg("attention","vous arrivez sur l'ile celeste","attention a ne pas tomber\nla chute serait fatal")
-	  
 	end 
 end
 -->8
@@ -253,9 +261,14 @@ end
 
 function tp()
 	if newx == 35 and newy == 59 then
- 	newx = 14
- 	newy = 10
+ 	newx = 10
+ 	newy = 9
+ 	if plr.flip == false then
+ 		plr.flip = true
+		end
  	mset(8, 9, 21)
+ 	create_msg("lovelace", "merci beaucoup d'avoir\nsauvez mon papi !","j'espere que vous avez\naimez votre voyage a enigma")
+	 talk2=true
 	elseif newx == 118 and newy == 4 then
  	newx = 127
  	newy = 00
@@ -397,6 +410,19 @@ end
 function update_msg()
 	if (btnp(🅾️)) then
 		deli(messages,1)
+		if talk2 then
+			i+=1
+		end
+		if i==2 then
+			talk3 = true
+		end
+	end
+	if talk then
+	 if talk2 then
+	 	if talk3 then
+	 	 end_game=true
+	  end
+		end
 	end
 end
 
@@ -475,8 +501,28 @@ function draw_blt()
 end
 
 -->8
---game over
+--game win/loose
 
+--game win
+
+function update_win()
+ if (btn(🅾️)) then 
+		_init()
+ end
+end
+
+function draw_win()
+ rect(20, 35, 115, 70, 1)
+ rectfill(19, 34, 114, 69, 6)
+
+ camera(0, 0)
+ print("you win ★", 45, 40, 8)
+ print("thanks you for playing", 25, 50, 7)
+ print("press 🅾️/c to restart", 25, 58, 7)
+ camera()
+end
+
+--game over
 
 function update_over()
  if (btn(🅾️)) then 
