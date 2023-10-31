@@ -10,6 +10,7 @@ function _init()
  mob1={}
  mob2={}
  fog={}
+ blood_particles={}
 	create_plr()
 	create_mob1()
 	create_mob2()
@@ -31,7 +32,6 @@ function update_game()
 		update_plr()
 		update_mob1()
 		update_mob2()
-		update_explo()
 	end
 	update_cam()
 	update_msg()
@@ -51,8 +51,8 @@ function draw_game()
 	draw_map()
 	draw_mob1()
 	draw_mob2()
-	draw_explo()
 	draw_blt()
+	draw_blood_particles()
 	draw_plr()
 	draw_ui()
 	draw_msg()
@@ -68,7 +68,7 @@ local invul=false
 
 function create_plr()
 	plr={
-		x=100,y=6,
+		x=3,y=3,
 		ox=0,oy=0,
 		start_ox=0,start_oy=0,
 		anim_t=0,
@@ -291,25 +291,24 @@ end
 
 
 function update_cam()
-				camspeed = 0.5 
-    local zonex = flr(plr.x / 32) * 32
-    local zoney = flr(plr.y / 32) * 32
+	camspeed = 0.5 
+ local zonex = flr(plr.x / 32) * 32
+ local zoney = flr(plr.y / 32) * 32
 
-    local camtargetx = plr.x * 8
-    local camtargety = plr.y * 8
+ local camtargetx = plr.x * 8
+ local camtargety = plr.y * 8
+ -- interpolation pour un deplacement fluide
+ camtargetx = lerp(camtargetx, camtargetx + plr.ox, camspeed)
+ camtargety = lerp(camtargety, camtargety + plr.oy, camspeed)
+ local camx = mid(zonex, (camtargetx - 64) / 8, zonex + 16)
+ local camy = mid(zoney, (camtargety - 64) / 8, zoney + 16)
 
-    -- interpolation pour un deplacement fluide
-    camtargetx = lerp(camtargetx, camtargetx + plr.ox, camspeed)
-    camtargety = lerp(camtargety, camtargety + plr.oy, camspeed)
-
-    local camx = mid(zonex, (camtargetx - 64) / 8, zonex + 16)
-    local camy = mid(zoney, (camtargety - 64) / 8, zoney + 16)
-
-    camera(camx * 8, camy * 8)
+ camera(camx * 8, camy * 8)
 end
 
+
 function lerp(a, b, t)
-    return a + (b - a) * t
+ return a + (b - a) * t
 end
 
 
@@ -426,35 +425,35 @@ end
 
 
 function update_blt()
-    for b in all(blt) do
-     if b.direction < 0 then
-         b.x -= b.speed
-         else
-         b.x += b.speed
+ for b in all(blt) do
+  if b.direction < 0 then
+   b.x -= b.speed
+   else
+   b.x += b.speed
   end
   local blt_tile_x = ceil(b.x)
-     local blt_tile_y = ceil(b.y)
-     for m1 in all(mob1) do
-         if collision(m1,b) then
-             del(blt,b)
-             m1.life-=1
-             create_explo(flr(b.x),flr(b.y))
-             if m1.life == 0 then
-                 del(mob1,m1)
-                end
-            end
+  local blt_tile_y = ceil(b.y)
+  for m1 in all(mob1) do
+   if collision(m1,b) then
+    del(blt,b)
+    m1.life-=1
+    add_blood_particle(m1.x,m1.y)
+    if m1.life == 0 then
+     del(mob1,m1)
+    end
+   end
   end
   for m2 in all(mob2) do
-      if collision(m2,b) then
-       del(blt,b)
-       m2.life-=1
-       create_explo(flr(b.x),flr(b.y))
-       if m2.life == 0 then
-           del(mob2,m2)
+   if collision(m2,b) then
+    del(blt,b)
+    m2.life-=1
+    add_blood_particle(m2.x,m2.y)    
+    if m2.life == 0 then
+     del(mob2,m2)
     end
-            end
+   end
   end
-     if blt_tile_x < 0 or blt_tile_x > 128 then
+  if blt_tile_x < 0 or blt_tile_x > 128 then
    del(blt, b)
   end
   if check_flag(0, blt_tile_x, blt_tile_y) then
@@ -637,47 +636,42 @@ end
 --collision
 
 function  collision(m, b)
-
-    if m.x > flr(b.x)
-    or m.y > flr(b.y)
-    or m.x < flr(b.x)
-    or m.y < flr(b.y) then
-        return false
-    else
-        return true
-    end
+ if m.x > flr(b.x)
+  or m.y > flr(b.y)
+  or m.x < flr(b.x)
+  or m.y < flr(b.y) then
+   return false
+ else
+  return true
+ end
 end
 -->8
---explosions
+--particle
 
-local explo={}
-
-function create_explo(x, y)
-	sfx(7)
-	new_explo={
-		x=x,
-		y=y,
-		timer=0
-		}
-	add(explo, new_explo)
-end
-
-function update_explo()
-
-	for e in all(explo) do
-		e.timer += 1
-		if e.timer == 13 then
-			del(explo, e)
-			end
-		end
-end
-
-
-function draw_explo()
-	for e in all(explo) do
-		circ(e.x, e.y, 
-						e.timer/3, 8+e.timer%3)
+function add_blood_particle(x, y)
+ for i=1,5 do
+	 local particle = {
+	  x=x,
+	  y=y,
+	  vx=rnd(0.5)-0.25, 
+	  vy=rnd(0.5)-0.25,
+	  color=8,
+	  lifetime=8
+	  }
+	 add(blood_particles, particle)
 	end
+end
+
+function draw_blood_particles()
+ for particle in all(blood_particles) do
+  rectfill(particle.x*8, particle.y*8, (particle.x+0.05)*8,(particle.y+0.05)*8,particle.color)
+  particle.x += particle.vx
+  particle.y += particle.vy
+  particle.lifetime -= 1
+  if particle.lifetime <= 0 then
+   del(blood_particles, particle)
+  end
+ end
 end
 
 
