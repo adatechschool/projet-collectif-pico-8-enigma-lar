@@ -76,7 +76,7 @@ local invul=false
 
 function create_plr()
 	plr={
-		x=98,y=10,
+		x=3,y=3,
 		ox=0,oy=0,
 		start_ox=0,start_oy=0,
 		anim_t=0,
