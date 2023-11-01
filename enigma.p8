@@ -215,7 +215,7 @@ function interact(x,y)
 	 tp()
 	 sfx(9)
 	elseif check_flag(4,x,y) then
-	 plr_fall()
+	 state=1
 	end
 	if x==6 and y==2 then
 		create_msg("ada", "bienvenue dans enigma !", 
@@ -371,10 +371,6 @@ function open_tree(x,y)
 		plr.chest-=1
 		create_msg("tronc","votre hache c'est cassee")
 	end	
-end
-
-function plr_fall()
-	plr.life-=3
 end
 -->8
 --ui
